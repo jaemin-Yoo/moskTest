@@ -31,5 +31,11 @@
         android:layout_height="wrap_content"
         android:text="저장된 위치 다 삭제하기"/>
 
+    <Button
+        android:id="@+id/btn_send"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="서버에 위치전송"/>
+
 
 </LinearLayout>
