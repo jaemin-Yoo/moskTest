@@ -11,7 +11,7 @@ import java.util.Map;
 public class AddressRequest extends StringRequest {
 
     // 서버 URL 설정 (php 파일 연동)
-    final static private String URL = "http://192.168.0.17/location.php"; // 우리 서버 주소
+    final static private String URL = "http://220.122.46.204:8001/location.php"; // 우리 서버 주소
     private Map<String, String> map;
 
     public AddressRequest(String[] preTime, String[] curTime, double[] Latitude, double[] Longitude, Response.Listener<String> listener){ // POST 형식으로 응답 보내기

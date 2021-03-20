@@ -13,6 +13,8 @@ import android.os.Looper;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.Button;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
@@ -64,18 +66,22 @@ public class PathActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     Location mCurrentLocatiion;
     LatLng currentPosition;
+    private double Lat, Long;
+    private double Lat_h = 0.0, Long_h = 0.0;
+    private String color = "";
 
     private FusedLocationProviderClient mFusedLocationClient;
     private LocationRequest locationRequest;
 
     private View mLayout;
-    // Snackbar 사용하기 위해서는 View가 필요합니다.
-    // (참고로 Toast에서는 Context가 필요했습니다.)
 
     //SQLite
     SQLiteDatabase locationDB;
     private final String dbname = "Mosk";
     private final String tablename = "location";
+    private final String tablehome = "place";
+
+    private Button start, stop, home;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -94,13 +100,51 @@ public class PathActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .setInterval(UPDATE_INTERVAL_MS)
                 .setFastestInterval(FASTEST_UPDATE_INTERVAL_MS);
 
-
         LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder();
         builder.addLocationRequest(locationRequest);
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.googleMap);
         mapFragment.getMapAsync(this);
+
+        start = findViewById(R.id.start_service);
+        start.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Log.d(TAG,"start!");
+                Toast.makeText(PathActivity.this, "Start", Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent(PathActivity.this, MyService.class);
+                startService(intent);
+            }
+        });
+
+        stop = findViewById(R.id.stop_service);
+        stop.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Log.d(TAG,"stop!");
+                Toast.makeText(PathActivity.this, "Stop", Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent(PathActivity.this, MyService.class);
+                stopService(intent);
+            }
+        });
+
+        home = findViewById(R.id.btn_home);
+        home.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Log.d(TAG, "My position : "+currentPosition);
+
+                try{
+                    locationDB.execSQL("INSERT INTO "+tablehome+"(Latitude, Longitude) VALUES("+currentPosition.latitude+", "+currentPosition.longitude+")");
+                } catch (Exception e){
+                    Toast.makeText(getApplicationContext(), "이미 저장된 장소입니다.", Toast.LENGTH_LONG).show();
+                }
+
+                markerUpdate();
+                Toast.makeText(PathActivity.this, "Setting", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     @Override
@@ -140,15 +184,7 @@ public class PathActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
         }
 
-        marker_cnt=0;
-        Cursor cursor = locationDB.rawQuery("SELECT * FROM "+tablename, null);
-        while(cursor.moveToNext()){
-            String pretime = cursor.getString(0);
-            String curtime = cursor.getString(1);
-            double Lat = cursor.getDouble(2);
-            double Long = cursor.getDouble(3);
-            setCurrentLocation(pretime, curtime, Lat, Long); // 나의 이동동선 마커표시
-        }
+        markerUpdate();
 
         mMap.getUiSettings().setMyLocationButtonEnabled(true);
         mMap.animateCamera(CameraUpdateFactory.zoomTo(18));
@@ -180,14 +216,80 @@ public class PathActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     };
 
-    public void setCurrentLocation(String pretime, String curtime, double lat, double lng) {
+    public void markerUpdate(){
+        int i=0;
+        if (currentMarker[i]!=null){
+            currentMarker[i].remove();
+            i++;
+        }
 
+        marker_cnt=0;
+        Cursor cursor = locationDB.rawQuery("SELECT * FROM "+tablename, null);
+        Cursor cursor_h = locationDB.rawQuery("SELECT * FROM "+tablehome, null);
+        Log.d(TAG, "cnt = "+cursor_h.getCount());
+        if (cursor_h.getCount() != 0){
+            while(cursor_h.moveToNext()){
+                Lat_h = cursor_h.getDouble(0);
+                Long_h = cursor_h.getDouble(1);
+
+                color = "blue";
+                setCurrentLocation("", "", Lat_h, Long_h, color); // 자주가는 장소 마커표시
+
+                while(cursor.moveToNext()){
+                    String pretime = cursor.getString(0);
+                    String curtime = cursor.getString(1);
+                    Lat = cursor.getDouble(2);
+                    Long = cursor.getDouble(3);
+
+                    if (getDistance(Lat_h, Long_h, Lat, Long) > 50){
+                        color = "red";
+                        setCurrentLocation(pretime, curtime, Lat, Long, color); // 나의 이동동선 마커표시
+                    } else{
+                        locationDB.execSQL("DELETE FROM "+tablename+" WHERE Latitude="+Lat+" AND Longitude="+Long); // 자주가는 장소 근처 위치 삭제
+                    }
+                }
+            }
+        } else{
+            while(cursor.moveToNext()){
+                String pretime = cursor.getString(0);
+                String curtime = cursor.getString(1);
+                Lat = cursor.getDouble(2);
+                Long = cursor.getDouble(3);
+                color = "red";
+                setCurrentLocation(pretime, curtime, Lat, Long, color); // 나의 이동동선 마커표시
+            }
+        }
+
+    }
+
+    public double getDistance(double pre_lat, double pre_lng, double aft_lat, double aft_lng) {
+        double distance = 0;
+        Location locationA = new Location("A");
+        locationA.setLatitude(pre_lat);
+        locationA.setLongitude(pre_lng);
+
+        Location locationB = new Location("B");
+        locationB.setLatitude(aft_lat);
+        locationB.setLongitude(aft_lng);
+
+        distance = locationA.distanceTo(locationB);
+        return distance; // m 단위
+    }
+
+    public void setCurrentLocation(String pretime, String curtime, double lat, double lng, String color) {
         LatLng currentLatLng = new LatLng(lat, lng); // maker 위치 ( 0.001 = 약 100m )
 
         MarkerOptions markerOptions = new MarkerOptions();
         markerOptions.position(currentLatLng);
-        markerOptions.title(pretime+" ~ "+curtime);
 
+        if (color == "blue"){
+            markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE));
+            markerOptions.title("자주가는장소");
+            Log.d(TAG, "1");
+        } else{
+            markerOptions.title(pretime+" ~ "+curtime);
+            Log.d(TAG, "0");
+        }
         currentMarker[marker_cnt] = mMap.addMarker(markerOptions);
         marker_cnt++;
     }

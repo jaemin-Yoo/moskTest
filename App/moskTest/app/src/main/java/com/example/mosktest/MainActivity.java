@@ -25,12 +25,13 @@ public class MainActivity extends AppCompatActivity {
     private String TAG = "Log";
 
     //Layout
-    private Button start, stop, path, delete, send;
+    private Button path, delete, hdelete, send;
 
     //SQLite
     SQLiteDatabase locationDB = null;
     private final String dbname = "Mosk";
     private final String tablename = "location";
+    private final String tablehome = "place";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,34 +43,15 @@ public class MainActivity extends AppCompatActivity {
         locationDB.execSQL("CREATE TABLE IF NOT EXISTS "+tablename
         +" (preTime datetime PRIMARY KEY, curTime datetime DEFAULT(datetime('now', 'localtime')), Latitude double NOT NULL, Longitude double NOT NULL)");
 
+        locationDB.execSQL("CREATE TABLE IF NOT EXISTS "+tablehome
+                +" (Latitude double NOT NULL, Longitude double NOT NULL, PRIMARY KEY(Latitude, Longitude))");
+
         // 2주 전 위치정보 삭제
         Cursor cursor = locationDB.rawQuery("SELECT * FROM "+tablename+" WHERE curTime<datetime('now','localtime','-14 days')", null);
         if (cursor.getCount() != 0){
             locationDB.execSQL("DELETE FROM "+tablename+" WHERE curTime<datetime('now','localtime','-14 days')");
             Toast.makeText(this, "2주 전 위치정보가 삭제되었습니다.", Toast.LENGTH_SHORT).show();
         }
-
-        start = findViewById(R.id.start_service);
-        start.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Log.d(TAG,"start!");
-                Toast.makeText(MainActivity.this, "Start", Toast.LENGTH_SHORT).show();
-                Intent intent = new Intent(MainActivity.this, MyService.class);
-                startService(intent);
-            }
-        });
-
-        stop = findViewById(R.id.stop_service);
-        stop.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Log.d(TAG,"stop!");
-                Toast.makeText(MainActivity.this, "Stop", Toast.LENGTH_SHORT).show();
-                Intent intent = new Intent(MainActivity.this, MyService.class);
-                stopService(intent);
-            }
-        });
 
         path = findViewById(R.id.btn_path);
         path.setOnClickListener(new View.OnClickListener() {
@@ -89,6 +71,15 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        hdelete = findViewById(R.id.btn_hdelete);
+        hdelete.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                locationDB.execSQL("DELETE FROM "+tablehome); // 추후 삭제해야되는 코드
+                Toast.makeText(getApplicationContext(), "Delete", Toast.LENGTH_LONG).show();
+            }
+        });
+
         send = findViewById(R.id.btn_send);
         send.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -101,14 +92,26 @@ public class MainActivity extends AppCompatActivity {
                         try{
                             Log.d(TAG,"TEST!");
                             JSONObject jsonObject = new JSONObject(response);
-                            String preTime = jsonObject.getString("preTime");
-                            String curTime = jsonObject.getString("curTime");
-                            String Latitude = jsonObject.getString("Latitude");
-                            String Longitude = jsonObject.getString("Longitude");
-                            Log.d(TAG, "preTime: "+preTime);
-                            Log.d(TAG, "curTime: "+curTime);
-                            Log.d(TAG, "Latitude: "+Latitude);
-                            Log.d(TAG, "Longitude: "+Longitude);
+                            String get_preTime = (jsonObject.getString("preTime")).replace("[", "").replace("]", "");
+                            String get_curTime = (jsonObject.getString("curTime")).replace("[", "").replace("]", "");
+                            String get_Latitude = (jsonObject.getString("Latitude")).replace("[", "").replace("]", "");
+                            String get_Longitude = (jsonObject.getString("Longitude")).replace("[", "").replace("]", "");
+
+                            String arr_preTime[] = get_preTime.split(", ");
+                            String arr_curTime[] = get_curTime.split(", ");
+                            String arr_Latitude[] = get_Latitude.split(", ");
+                            String arr_Longitude[] = get_Longitude.split(", ");
+
+                            for (int i = 0; i<arr_preTime.length; i++){
+                                String preTime = arr_preTime[i];
+                                String curTime = arr_curTime[i];
+                                double Latitude = Double.parseDouble(arr_Latitude[i]);
+                                double Longitude = Double.parseDouble(arr_Longitude[i]);
+                                Log.d(TAG, "preTime: "+preTime);
+                                Log.d(TAG, "curTime: "+curTime);
+                                Log.d(TAG, "Latitude: "+Latitude);
+                                Log.d(TAG, "Longitude: "+Longitude);
+                            }
 
                         } catch (JSONException e){
                             e.printStackTrace();

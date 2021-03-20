@@ -8,18 +8,6 @@
     tools:context=".MainActivity">
 
     <Button
-        android:id="@+id/start_service"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="서비스 시작"/>
-
-    <Button
-        android:id="@+id/stop_service"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="서비스 중지"/>
-
-    <Button
         android:id="@+id/btn_path"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -30,6 +18,12 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="저장된 위치 다 삭제하기"/>
+
+    <Button
+        android:id="@+id/btn_hdelete"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="자주가는장소 다 삭제하기"/>
 
     <Button
         android:id="@+id/btn_send"

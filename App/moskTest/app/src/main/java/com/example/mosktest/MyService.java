@@ -33,11 +33,13 @@ public class MyService extends Service {
     SQLiteDatabase locationDB;
     private final String dbname = "Mosk";
     private final String tablename = "location";
+    private final String tablehome = "place";
 
     //GPS
     private String preTime;
     private double Latitude, Longitude;
     private double pre_lat = 0.0, pre_lng = 0.0;
+    private double Lat_h = 0.0, Long_h = 0.0;
     private LocationManager lm;
     private Location location;
     private long timer, past, now = 0;
@@ -61,8 +63,8 @@ public class MyService extends Service {
                 Latitude = location.getLatitude();
                 Longitude = location.getLongitude();
 
-                lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 60000, 30, gpsLocationListener); //Location Update (1분마다 30m거리 이동 시)
-                lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 60000, 30, gpsLocationListener);
+                lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 60000, 50, gpsLocationListener); //Location Update (1분마다 30m거리 이동 시)
+                lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 60000, 50, gpsLocationListener);
             }
         }
         return START_STICKY;
@@ -81,26 +83,36 @@ public class MyService extends Service {
                 Log.d(TAG, "Timer: "+timer);
             }
 
-            if (timer < 180) {
-                //움직이고 있을 때 위치업데이트
+            if (timer > 300) {
+                //5분이상 장소에 머물렀을 시 위치저장
+                Cursor cursor_h = locationDB.rawQuery("SELECT * FROM "+tablehome, null);
+                if (cursor_h.getCount() != 0){
+                    while(cursor_h.moveToNext()) {
+                        Lat_h = cursor_h.getDouble(0);
+                        Long_h = cursor_h.getDouble(1);
 
-                // 위치업데이트 시간 구하기
-                Date mDate = new Date(now);
-                SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                preTime = simpleDateFormat.format(mDate);
-
-                past = System.currentTimeMillis();
-                pre_lat = Latitude;
-                pre_lng = Longitude;
-
-                Log.d(TAG, "위치업데이트!");
-                Log.d(TAG, "위치업데이트 시간 : "+preTime);
-            } else {
-                //3분이상 장소에 머물렀을 시 위치저장
-                locationDB.execSQL("INSERT INTO "+tablename+"(preTime, Latitude, Longitude) VALUES('"+preTime+"', "+pre_lat+", "+pre_lng+")");
-                past = System.currentTimeMillis();
-                Log.d(TAG, "위치저장!");
+                        if (getDistance(Lat_h, Long_h, pre_lat, pre_lng) > 50){
+                            locationDB.execSQL("INSERT INTO "+tablename+"(preTime, Latitude, Longitude) VALUES('"+preTime+"', "+pre_lat+", "+pre_lng+")");
+                            Log.d(TAG, "위치저장!");
+                        }
+                    }
+                } else{
+                    locationDB.execSQL("INSERT INTO "+tablename+"(preTime, Latitude, Longitude) VALUES('"+preTime+"', "+pre_lat+", "+pre_lng+")");
+                    Log.d(TAG, "위치저장!");
+                }
             }
+
+            //움직이고 있을 때 위치업데이트
+            Date mDate = new Date(now); // 위치업데이트 시간 구하기
+            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            preTime = simpleDateFormat.format(mDate);
+
+            past = System.currentTimeMillis();
+            pre_lat = Latitude;
+            pre_lng = Longitude;
+
+            Log.d(TAG, "위치업데이트!");
+            Log.d(TAG, "위치업데이트 시간 : "+preTime);
 
             // DB 데이터 확인
             Cursor cursor = locationDB.rawQuery("SELECT * FROM "+tablename, null);
@@ -122,6 +134,20 @@ public class MyService extends Service {
         @Override
         public void onProviderDisabled(@NonNull String provider) {}
     };
+
+    public double getDistance(double pre_lat, double pre_lng, double aft_lat, double aft_lng) {
+        double distance = 0;
+        Location locationA = new Location("A");
+        locationA.setLatitude(pre_lat);
+        locationA.setLongitude(pre_lng);
+
+        Location locationB = new Location("B");
+        locationB.setLatitude(aft_lat);
+        locationB.setLongitude(aft_lng);
+
+        distance = locationA.distanceTo(locationB);
+        return distance; // m 단위
+    }
 
     @Override
     public void onDestroy() {
