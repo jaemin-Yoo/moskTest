@@ -82,6 +82,7 @@ public class PathActivity extends AppCompatActivity implements OnMapReadyCallbac
     private final String tablehome = "place";
 
     private Button start, stop, home;
+    private Intent serviceIntent;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -112,9 +113,14 @@ public class PathActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onClick(View v) {
                 Log.d(TAG,"start!");
-                Toast.makeText(PathActivity.this, "Start", Toast.LENGTH_SHORT).show();
-                Intent intent = new Intent(PathActivity.this, MyService.class);
-                startService(intent);
+                if (MyService.serviceIntent==null){
+                    serviceIntent = new Intent(PathActivity.this, MyService.class);
+                    startService(serviceIntent);
+                    Toast.makeText(PathActivity.this, "Start", Toast.LENGTH_SHORT).show();
+                } else{
+                    serviceIntent = MyService.serviceIntent;
+                    Toast.makeText(PathActivity.this, "already..", Toast.LENGTH_SHORT).show();
+                }
             }
         });
 
@@ -123,9 +129,14 @@ public class PathActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onClick(View v) {
                 Log.d(TAG,"stop!");
-                Toast.makeText(PathActivity.this, "Stop", Toast.LENGTH_SHORT).show();
-                Intent intent = new Intent(PathActivity.this, MyService.class);
-                stopService(intent);
+                if (serviceIntent!=null){
+                    MyService.serviceIntent = null;
+                    stopService(serviceIntent);
+                    serviceIntent = null;
+                    Toast.makeText(PathActivity.this, "Stop", Toast.LENGTH_SHORT).show();
+                } else{
+                    Toast.makeText(PathActivity.this, "No service..", Toast.LENGTH_SHORT).show();
+                }
             }
         });
 
