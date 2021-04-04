@@ -129,10 +129,10 @@ public class PathActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onClick(View v) {
                 Log.d(TAG,"stop!");
-                if (serviceIntent!=null){
+                if (MyService.serviceIntent!=null){
+                    serviceIntent = MyService.serviceIntent;
                     MyService.serviceIntent = null;
                     stopService(serviceIntent);
-                    serviceIntent = null;
                     Toast.makeText(PathActivity.this, "Stop", Toast.LENGTH_SHORT).show();
                 } else{
                     Toast.makeText(PathActivity.this, "No service..", Toast.LENGTH_SHORT).show();

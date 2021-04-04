@@ -25,7 +25,7 @@ public class MainActivity extends AppCompatActivity {
     private String TAG = "Log";
 
     //Layout
-    private Button path, delete, hdelete, send;
+    private Button path, delete, hdelete, send, news;
 
     //SQLite
     SQLiteDatabase locationDB = null;
@@ -37,6 +37,11 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        /* Glide
+        back=findViewById(R.id.btn_back);
+        Glide.with(this).load("https://i.imgur.com/iYM8Gc1.png").into(back); // 이미지 로드
+        */
 
         //Create DB, Table
         locationDB = this.openOrCreateDatabase(dbname, MODE_PRIVATE, null);
@@ -58,6 +63,15 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(MainActivity.this,PathActivity.class);
+                startActivity(intent);
+            }
+        });
+
+        news = findViewById(R.id.btn_news);
+        news.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(MainActivity.this, NewsActivity.class);
                 startActivity(intent);
             }
         });
