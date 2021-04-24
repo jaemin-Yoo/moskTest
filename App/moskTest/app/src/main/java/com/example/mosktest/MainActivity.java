@@ -18,6 +18,7 @@ import com.android.volley.toolbox.Volley;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.PrintWriter;
 import java.util.Arrays;
 
 public class MainActivity extends AppCompatActivity {
@@ -98,64 +99,20 @@ public class MainActivity extends AppCompatActivity {
         send.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // 서버통신
-
-                Response.Listener<String> responseListener = new Response.Listener<String>() {
-                    @Override
-                    public void onResponse(String response) {
-                        try{
-                            Log.d(TAG,"TEST!");
-                            JSONObject jsonObject = new JSONObject(response);
-                            String get_preTime = (jsonObject.getString("preTime")).replace("[", "").replace("]", "");
-                            String get_curTime = (jsonObject.getString("curTime")).replace("[", "").replace("]", "");
-                            String get_Latitude = (jsonObject.getString("Latitude")).replace("[", "").replace("]", "");
-                            String get_Longitude = (jsonObject.getString("Longitude")).replace("[", "").replace("]", "");
-
-                            String arr_preTime[] = get_preTime.split(", ");
-                            String arr_curTime[] = get_curTime.split(", ");
-                            String arr_Latitude[] = get_Latitude.split(", ");
-                            String arr_Longitude[] = get_Longitude.split(", ");
-
-                            for (int i = 0; i<arr_preTime.length; i++){
-                                String preTime = arr_preTime[i];
-                                String curTime = arr_curTime[i];
-                                double Latitude = Double.parseDouble(arr_Latitude[i]);
-                                double Longitude = Double.parseDouble(arr_Longitude[i]);
-                                Log.d(TAG, "preTime: "+preTime);
-                                Log.d(TAG, "curTime: "+curTime);
-                                Log.d(TAG, "Latitude: "+Latitude);
-                                Log.d(TAG, "Longitude: "+Longitude);
-                            }
-
-                        } catch (JSONException e){
-                            e.printStackTrace();
-                        }
+                if (MyService.serviceIntent!=null){
+                    if (MyService.networKWriter!=null){
+                        PrintWriter out = new PrintWriter(MyService.networKWriter, true);
+                        String data = "hi";
+                        out.println(data);
+                        Toast.makeText(MainActivity.this, "데이터를 전송하였습니다.", Toast.LENGTH_SHORT).show();
+                    } else{
+                        Toast.makeText(MainActivity.this, "서버 상태를 확인하세요.", Toast.LENGTH_SHORT).show();
                     }
-                };
-
-                // SQLite 데이터 가져오기
-                Cursor cursor = locationDB.rawQuery("SELECT * FROM "+tablename, null);
-
-                String[] preTime = new String[cursor.getCount()];
-                String[] curTime = new String[cursor.getCount()];
-                double[] Latitude = new double[cursor.getCount()];
-                double[] Longitude = new double[cursor.getCount()];
-                int i = 0;
-
-                while(cursor.moveToNext()){
-                    preTime[i] = cursor.getString(0);
-                    curTime[i] = cursor.getString(1);
-                    Latitude[i] = cursor.getDouble(2);
-                    Longitude[i] = cursor.getDouble(3);
-                    i++;
+                } else{
+                    Toast.makeText(MainActivity.this, "백그라운드를 실행 해 주세요.", Toast.LENGTH_SHORT).show();
                 }
-
-                AddressRequest addressRequest = new AddressRequest(preTime, curTime, Latitude, Longitude, responseListener);
-                RequestQueue queue = Volley.newRequestQueue(MainActivity.this);
-                queue.add(addressRequest);
-
-                Toast.makeText(getApplicationContext(), "Send", Toast.LENGTH_LONG).show();
             }
         });
     }
+
 }
