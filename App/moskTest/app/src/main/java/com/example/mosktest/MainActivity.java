@@ -1,10 +1,17 @@
 package com.example.mosktest;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.NotificationCompat;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -26,13 +33,19 @@ public class MainActivity extends AppCompatActivity {
     private String TAG = "Log";
 
     //Layout
-    private Button path, delete, hdelete, send, news;
+    private Button path, delete, hdelete, send, news, netstart, netstop;
 
     //SQLite
     SQLiteDatabase locationDB = null;
     private final String dbname = "Mosk";
     private final String tablename = "location";
     private final String tablehome = "place";
+
+    //Socket
+    private String data = "";
+
+    //NetworkService
+    NetworkService networkService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -101,16 +114,53 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 if (MyService.serviceIntent!=null){
                     if (MyService.networKWriter!=null){
-                        PrintWriter out = new PrintWriter(MyService.networKWriter, true);
-                        String data = "hi";
-                        out.println(data);
-                        Toast.makeText(MainActivity.this, "데이터를 전송하였습니다.", Toast.LENGTH_SHORT).show();
+                        Cursor cursor = locationDB.rawQuery("SELECT * FROM "+tablename, null);
+                        while(cursor.moveToNext()){
+                            String pretime = cursor.getString(0);
+                            String curtime = cursor.getString(1);
+                            double Lat = cursor.getDouble(2);
+                            double Long = cursor.getDouble(3);
+
+                            if (curtime != null){
+                                // 동선 저장 중인 위치는 전송 x
+                                PrintWriter out = new PrintWriter(MyService.networKWriter, true);
+                                data = pretime+"/"+curtime+"/"+Lat+"/"+Long;
+                                out.println(data);
+                                Log.d(TAG,"전송된 데이터: "+data);
+                            }
+                        }
+
+                        if (data==""){
+                            Toast.makeText(MainActivity.this, "전송 할 데이터가 없습니다.", Toast.LENGTH_SHORT).show();
+                        } else{
+                            Toast.makeText(MainActivity.this, "데이터를 전송하였습니다.", Toast.LENGTH_SHORT).show();
+                        }
                     } else{
                         Toast.makeText(MainActivity.this, "서버 상태를 확인하세요.", Toast.LENGTH_SHORT).show();
                     }
                 } else{
                     Toast.makeText(MainActivity.this, "백그라운드를 실행 해 주세요.", Toast.LENGTH_SHORT).show();
                 }
+            }
+        });
+
+        netstart = findViewById(R.id.btn_net_start);
+        netstart.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (networkService == null){
+                    Intent intent = new Intent(MainActivity.this, NetworkService.class);
+                    startService(intent);
+                }
+            }
+        });
+
+        netstop = findViewById(R.id.btn_net_stop);
+        netstop.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(MainActivity.this, NetworkService.class);
+                stopService(intent);
             }
         });
     }

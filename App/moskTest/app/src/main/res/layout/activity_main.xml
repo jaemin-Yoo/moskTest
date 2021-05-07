@@ -37,5 +37,17 @@
         android:layout_height="wrap_content"
         android:text="서버에 위치전송"/>
 
+    <Button
+        android:id="@+id/btn_net_start"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="네트워크 연결상태 확인 서비스 시작"/>
+
+    <Button
+        android:id="@+id/btn_net_stop"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="네트워크 연결상태 확인 서비스 중지"/>
+
 
 </LinearLayout>

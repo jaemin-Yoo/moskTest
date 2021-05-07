@@ -54,7 +54,6 @@ public class MyService extends Service {
     private String preTime;
     private double Latitude, Longitude;
     private double pre_lat = 0.0, pre_lng = 0.0;
-    private double Lat_h = 0.0, Long_h = 0.0;
     private LocationManager lm;
     private Location location;
     private boolean location_state = false;
@@ -97,14 +96,15 @@ public class MyService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         serviceIntent = intent;
 
-        initializeNotification();
+        serviceNotification();
 
-        Log.d(TAG, "sThread:"+sThread);
-        Log.d(TAG, "mThread:"+mThread);
+        if (sThread == null){
+            sThread.start();
+        }
 
-
-        sThread.start();
-        mThread.start();
+        if (mThread == null){
+            mThread.start();
+        }
 
         return START_STICKY;
     }
@@ -112,16 +112,50 @@ public class MyService extends Service {
     private Thread sThread = new Thread("Socket thread"){
         @Override
         public void run() {
-            try {
-                setSocket(ip, port); // 서버 소켓 생성
-                Log.d(TAG, "Make Socket !");
+            while (true) {
+                try {
+                    setSocket(ip, port); // 서버 소켓 생성
+                    Log.d(TAG, "Make Socket !");
 
-                while(true){
-                    recv_data = networkReader.readLine(); // 데이터 수신
-                    Log.d(TAG, "recv_data:"+recv_data);
+                    while (true) {
+                        recv_data = networkReader.readLine(); // 데이터 수신
+                        Log.d(TAG, "recv_data: "+recv_data);
+                        String datalist[] = recv_data.split("/");
+                        double infLat = Double.parseDouble(datalist[2]);
+                        double infLong = Double.parseDouble(datalist[3]);
+
+                        Cursor cursor = locationDB.rawQuery("SELECT * FROM "+tablename+" WHERE preTime<='"+datalist[1]+"' AND curTime>='"+datalist[0]+"'", null);
+                        while(cursor.moveToNext()){
+                            String pretime = cursor.getString(0);
+                            String curtime = cursor.getString(1);
+                            double myLat = cursor.getDouble(2);
+                            double myLong = cursor.getDouble(3);
+
+                            double distance = 0.0;
+                            distance = getDistance(infLat, infLong, myLat, myLong);
+
+                            if (distance<std_distance){
+                                warningNotification();
+                                Log.d(TAG, "동선 겹침");
+                                break;
+                            }
+                        }
+                        if (recv_data == null) {
+                            networKWriter = null;
+                            break;
+                        }
+                    }
+                } catch (IOException e) {
+                    if (sThread == null){
+                        break; // 스레드를 종료해도 while문이 작동하는 현상 해결
+                    } else{
+                        try {
+                            Thread.sleep(300000); // 서버와 연결이 안되면, 주기적으로 서버와 연결을 요청함
+                        } catch (InterruptedException interruptedException) {
+                            interruptedException.printStackTrace();
+                        }
+                    }
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
             }
         }
     };
@@ -131,6 +165,7 @@ public class MyService extends Service {
         public void run() {
             while (true){
                 try{
+
                     Log.d(TAG, "----------------------------");
                     Log.d(TAG, "이전 위치: "+pre_lat+" "+pre_lng);
                     Log.d(TAG, "최근 위치: "+Latitude+" "+Longitude);
@@ -190,7 +225,8 @@ public class MyService extends Service {
                         Log.d(TAG,"저장된 데이터: "+pretime+" "+curtime+" "+Lat+" "+Long);
                     }
 
-                    Thread.sleep(300000);
+                    Thread.sleep(60000);
+
                 } catch (InterruptedException e){
                     break;
                 }
@@ -230,7 +266,7 @@ public class MyService extends Service {
         return distance; // m 단위
     }
 
-    public void initializeNotification(){
+    public void serviceNotification(){
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, "1");
         builder.setSmallIcon(R.drawable.icon_mask_liked);
         NotificationCompat.BigTextStyle style = new NotificationCompat.BigTextStyle();
@@ -252,6 +288,26 @@ public class MyService extends Service {
         }
         Notification notification = builder.build();
         startForeground(1, notification);
+    }
+
+    public void warningNotification(){
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, "2");
+        builder.setSmallIcon(R.drawable.icon_mask_liked);
+        builder.setContentText("확진자와 동선이 겹쳤습니다.");
+        builder.setContentTitle("경고");
+        builder.setAutoCancel(true);
+        builder.setVibrate(new long[]{1000,1000});
+        builder.setWhen(0);
+        builder.setShowWhen(true);
+        Intent notificationIntent = new Intent(this, MainActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+        builder.setContentIntent(pendingIntent);
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(new NotificationChannel("2", "warning", NotificationManager.IMPORTANCE_NONE));
+        }
+        Notification notification = builder.build();
+        manager.notify(1,notification);
     }
 
     @Override
